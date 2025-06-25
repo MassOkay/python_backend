@@ -4,6 +4,7 @@ from fastapi import FastAPI, Query
 from sentence_transformers import SentenceTransformer
 import faiss
 import numpy as np
+import json
 
 app = FastAPI()
 
@@ -13,17 +14,16 @@ dimension = 384  # モデルに応じて変更
 index = faiss.IndexFlatL2(dimension)  # ここではFlat（類似度計算のみ）
 
 # ダミーデータ（本番ではDBから読み込む）
-documents = [
-    "猫が好きです。",
-    "犬は忠実な友達。",
-    "私は東京に住んでいます。",
-    "ラーメンが食べたい。",
-    "渋谷はにぎやかな街です。"
-]
+with open(r'C:\Users\gulen\Documents\GitHub\python_backend\data.json', 'r', encoding='utf-8') as f:
+    documents = json.load(f)
 
 # ベクトル化してインデックスに追加
 doc_embeddings = model.encode(documents)
 index.add(np.array(doc_embeddings))
+
+@app.get("/show")
+def show_documents():
+    return {"documents": documents}
 
 @app.get("/search")
 def search(q: str = Query(..., description="検索ワード")):
