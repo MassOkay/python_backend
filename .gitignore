@@ -1,1 +1,6 @@
-__pycache__
+# Pythonバイトコードキャッシュ
+__pycache__/
+*.py[cod]
+
+# Python virtual environment
+.venv/
