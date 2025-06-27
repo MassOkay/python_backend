@@ -9,6 +9,7 @@ import re
 import os
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
+from fastapi.responses import FileResponse
 
 app = FastAPI()
 
@@ -78,4 +79,5 @@ def visualize():
     plt.title("t-SNE Visualization of Document Embeddings")
     plt.savefig("embedding_visualization.png")
     plt.close()
-    return {"message": "embedding_visualization.png を作成しました"}
+    
+    return FileResponse("embedding_visualization.png", media_type="image/png")
