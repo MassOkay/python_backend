@@ -7,6 +7,8 @@ import numpy as np
 import json
 import re
 import os
+from sklearn.manifold import TSNE
+import matplotlib.pyplot as plt
 
 app = FastAPI()
 
@@ -17,9 +19,9 @@ index = faiss.IndexFlatL2(dimension)  # ここではFlat（類似度計算のみ
 
 # 文分割用関数（日本語の句点・改行で分割）
 def split_sentences(text):
-    return [s for s in re.split(r'[。！？\n]', text) if s.strip()]
+    return [s for s in re.split(r'[。！？.\n]', text) if s.strip()]
 
-with open(r'C:\Users\gulen\Documents\GitHub\python_backend\data.json', 'r', encoding='utf-8') as f:
+with open(r'C:\Users\gulen\Documents\GitHub\python_backend\sections_extracted.json', 'r', encoding='utf-8') as f:
     documents = json.load(f)
 
 # 各長文を文ごとに分割し、文ベクトルの平均を計算
@@ -30,8 +32,7 @@ else:
     for doc in documents:
         text = ""
         if isinstance(doc, dict):
-            sections = doc.get("sections", {})
-            text = (sections.get("講義概要", "") or "") + "\n" + (sections.get("授業科目の内容・目的・方法・到達目標", "") or "")
+            text = (doc.get("講義概要", "") or "") + "\n" + (doc.get("授業科目の内容・目的・方法・到達目標", "") or "")
         else:
             text = str(doc)
         sentences = split_sentences(text)
@@ -54,8 +55,27 @@ def show_documents():
 @app.get("/search")
 def search(q: str = Query(..., description="検索ワード")):
     query_vec = model.encode([q]).astype(np.float32)
-    k = 3
+    k = 30
     distances, indices = index.search(query_vec, k)
     # titleだけ抽出
-    results = [documents[i].get("title", "") for i in indices[0]]
+    results = [
+        documents[i].get("title", "")
+        for i in indices[0]
+        if 0 <= i < len(documents)
+    ]
     return {"query": q, "results": results}
+
+@app.get("/visualize")
+def visualize():
+    # t-SNEで2次元に削減
+    tsne = TSNE(n_components=2, random_state=42)
+    reduced = tsne.fit_transform(doc_embeddings)
+
+    # 可視化
+    plt.figure(figsize=(10, 8))
+    for i, coord in enumerate(reduced):
+        plt.scatter(coord[0], coord[1])
+    plt.title("t-SNE Visualization of Document Embeddings")
+    plt.savefig("embedding_visualization.png")
+    plt.close()
+    return {"message": "embedding_visualization.png を作成しました"}
