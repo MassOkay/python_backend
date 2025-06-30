@@ -15,11 +15,12 @@ from fastapi.responses import FileResponse
 app = FastAPI()
 
 # --- 設定値 ---
-MODEL_NAME = 'all-MiniLM-L6-v2'
-DIMENSION = 384  # モデル 'all-MiniLM-L6-v2' の次元数
+MODEL_NAME = 'sonoisa/sentence-bert-base-ja-mean-tokens-v2'  # 正しい日本語特化モデル名に修正
+DIMENSION = 768  # モデルの次元数に合わせて変更
 FAISS_INDEX_PATH = "faiss_index.bin"
 DOC_EMBEDDINGS_PATH = "doc_embeddings.npy"
-SOURCE_JSON_PATH = r'C:\Users\gulen\Documents\GitHub\python_backend\sections_extracted.json'
+CHUNK_DATA_PATH = "document_chunks.json" # チャンク情報を保存するファイル
+SOURCE_JSON_PATH = "sections_extracted.json"  # 入力JSONファイルのパス
 VISUALIZATION_IMAGE_PATH = "embedding_visualization.png"
 SEARCH_K = 30
 
@@ -27,10 +28,9 @@ SEARCH_K = 30
 model: SentenceTransformer = None
 index: faiss.Index = None
 documents: List[Dict[str, Any]] = []
-
-# 文分割用関数（日本語の句点・改行で分割）
-def split_sentences(text: str) -> List[str]:
-    return [s for s in re.split(r'[。！？.\n]', text) if s.strip()]
+# ドキュメントをチャンクに分割したものを保持するリスト
+# 各要素は {"original_doc_id": int, "text": str} の形式
+document_chunks: List[Dict[str, Any]] = []
 
 def load_documents(path: str) -> List[Dict[str, Any]]:
     """JSONファイルからドキュメントを読み込む"""
@@ -42,46 +42,59 @@ def load_documents(path: str) -> List[Dict[str, Any]]:
     except json.JSONDecodeError:
         raise HTTPException(status_code=500, detail=f"Failed to decode JSON from {path}")
 
-def create_embeddings(docs: List[Dict[str, Any]], model: SentenceTransformer) -> np.ndarray:
-    """ドキュメントリストからベクトルを作成する"""
-    doc_embeddings_list = []
-    for doc in docs:
-        # 辞書でない場合や、必要なキーがない場合も考慮
-        text = f'{doc.get("講義概要", "")}\n{doc.get("授業科目の内容・目的・方法・到達目標", "")}'
-        sentences = split_sentences(text.strip())
-        if sentences:
-            sent_embeds = model.encode(sentences, convert_to_tensor=False)
-            mean_embed = np.mean(sent_embeds, axis=0)
-            doc_embeddings_list.append(mean_embed)
-        else:
-            # テキストが空の場合、ゼロベクトルを追加
-            doc_embeddings_list.append(np.zeros(DIMENSION, dtype=np.float32))
-    return np.array(doc_embeddings_list, dtype=np.float32)
+def create_chunk_embeddings(chunks: List[Dict[str, Any]], model: SentenceTransformer) -> np.ndarray:
+    """チャンクリストからベクトルを作成する"""
+    texts_to_encode = [chunk["text"] for chunk in chunks]
+    # テキストのリストをバッチ処理で一度にエンコード
+    return model.encode(texts_to_encode, convert_to_tensor=False, show_progress_bar=True)
+
+def split_into_sentences(text: str) -> List[str]:
+    """テキストを文に分割する"""
+    # 空白や改行で繋がれた文を考慮し、句点や改行で分割後、不要な空白を削除
+    sentences = re.split(r'(?<=[。！？.])\s*|\n+', text)
+    return [s.strip() for s in sentences if s.strip()]
 
 @app.on_event("startup")
 def startup_event():
     """アプリケーション起動時にモデルとインデックスをロードする"""
-    global model, index, documents
+    global model, index, documents, document_chunks
 
     model = SentenceTransformer(MODEL_NAME)
     documents = load_documents(SOURCE_JSON_PATH)
 
-    if os.path.exists(FAISS_INDEX_PATH):
+    # 生成済みファイルがすべて存在する場合のみ、それらをロードする
+    if os.path.exists(FAISS_INDEX_PATH) and os.path.exists(CHUNK_DATA_PATH):
         print(f"Loading existing Faiss index from {FAISS_INDEX_PATH}")
         index = faiss.read_index(FAISS_INDEX_PATH)
+        print(f"Loading document chunks from {CHUNK_DATA_PATH}")
+        with open(CHUNK_DATA_PATH, 'r', encoding='utf-8') as f:
+            document_chunks = json.load(f)
     else:
-        print("Creating new Faiss index.")
-        if os.path.exists(DOC_EMBEDDINGS_PATH):
-            print(f"Loading embeddings from {DOC_EMBEDDINGS_PATH}")
-            doc_embeddings = np.load(DOC_EMBEDDINGS_PATH)
-        else:
-            print("Creating new embeddings.")
-            doc_embeddings = create_embeddings(documents, model)
-            print(f"Saving document embeddings to {DOC_EMBEDDINGS_PATH}")
-            np.save(DOC_EMBEDDINGS_PATH, doc_embeddings)
+        print("One or more generated files not found. Regenerating index and chunks.")
         
-        # Faissインデックスの作成
-        index = faiss.IndexFlatL2(DIMENSION)
+        # 1. ドキュメントをチャンクに分割
+        print("Chunking documents...")
+        for i, doc in enumerate(documents):
+            title = doc.get("title", "")
+            full_text = f"{doc.get('講義概要', '')}\n{doc.get('授業科目の内容・目的・方法・到達目標', '')}".strip()
+            chunks = split_into_sentences(full_text)
+            document_chunks.extend([{"original_doc_id": i, "text": f"{title}: {chunk}"} for chunk in chunks if chunk])
+        
+        with open(CHUNK_DATA_PATH, 'w', encoding='utf-8') as f:
+            json.dump(document_chunks, f, ensure_ascii=False)
+        print(f"Saved {len(document_chunks)} chunks to {CHUNK_DATA_PATH}")
+
+        # 2. チャンクのベクトルを作成・保存
+        print("Creating new embeddings... (this may take a while)")
+        doc_embeddings = create_chunk_embeddings(document_chunks, model).astype(np.float32)
+        np.save(DOC_EMBEDDINGS_PATH, doc_embeddings)
+        print(f"Saved embeddings to {DOC_EMBEDDINGS_PATH}")
+        
+        # 3. Faissインデックスを作成・保存
+        faiss.normalize_L2(doc_embeddings)
+        
+        print("Using IndexFlatIP for cosine similarity search.")
+        index = faiss.IndexFlatIP(DIMENSION) # 内積（コサイン類似度）を計算するインデックスに変更
         index.add(doc_embeddings)
 
         # インデックスを保存
@@ -97,16 +110,41 @@ def search(q: str = Query(..., description="検索ワード")) -> Dict[str, Any]
     if not q.strip():
         raise HTTPException(status_code=400, detail="Query cannot be empty.")
 
-    query_vec = model.encode([q], convert_to_tensor=False).astype(np.float32)
-    distances, indices = index.search(query_vec, SEARCH_K)
+    query_vec = model.encode([q]).astype(np.float32)
+    faiss.normalize_L2(query_vec) # クエリベクトルも正規化
+    # IndexFlatIPは内積（類似度スコア）を返す。値が大きいほど類似度が高い。
+    scores, chunk_indices = index.search(query_vec, SEARCH_K)
     
-    # titleだけ抽出
-    results = [
-        documents[i].get("title", "")
-        for i in indices[0]
-        if 0 <= i < len(documents)
-    ]
-    return {"query": q, "results": results, "distances": distances[0].tolist()}
+    # チャンクの検索結果を元のドキュメントに集約する
+    doc_scores = {}
+    for chunk_idx, score in zip(chunk_indices[0], scores[0]):
+        # スコアが極端に低い場合やインデックスが無効な場合はスキップ
+        if chunk_idx < 0 or score < 0.1: continue
+        
+        original_doc_id = document_chunks[chunk_idx]["original_doc_id"]
+        
+        # 同じドキュメントが複数回ヒットした場合、最も高いスコアを採用（ロジックはこれで正しい）
+        if original_doc_id not in doc_scores or score > doc_scores[original_doc_id]["score"]:
+            doc_scores[original_doc_id] = {
+                "score": score,
+                "hit_chunk": document_chunks[chunk_idx]["text"] # どのチャンクがヒットしたか
+            }
+
+    # スコアの高い順にソート（IndexFlatIPを使ったので、このロジックで正しい）
+    sorted_doc_ids = sorted(doc_scores.keys(), key=lambda doc_id: doc_scores[doc_id]["score"], reverse=True)
+
+    # 最終的なレスポンスを構築
+    results = []
+    for doc_id in sorted_doc_ids:
+        doc = documents[doc_id]
+        results.append({
+            "title": doc.get("title", ""),
+            "overview_snippet": (doc.get("講義概要", "") or "")[:100] + "...",
+            # スコアを0.0から1.0の範囲に収めて表示
+            "score": min(1.0, max(0.0, float(doc_scores[doc_id]["score"]))),
+            "hit_chunk": doc_scores[doc_id]["hit_chunk"]
+        })
+    return {"query": q, "results": results}
 
 @app.get("/visualize")
 def visualize():

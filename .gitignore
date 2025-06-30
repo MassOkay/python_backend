@@ -17,6 +17,7 @@ sections_extracted.json
 # APIサーバーが生成するファイル
 doc_embeddings.npy
 faiss_index.bin
+document_chunks.json
 embedding_visualization.png
 
 # OS / Editor
