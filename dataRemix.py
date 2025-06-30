@@ -6,7 +6,7 @@ from typing import List, Dict, Any
 INPUT_FILENAME = "data.json"
 OUTPUT_FILENAME = "sections_extracted.json"
 FILTER_KEYWORD = "研究会"
-ENGLISH_THRESHOLD = 0.7  # 英語の割合がこの値以上の場合に除外
+ENGLISH_THRESHOLD = 0.4  # 英語の割合がこの値以上の場合に除外
 
 def is_mostly_english(text: str, threshold: float) -> bool:
     """
@@ -42,13 +42,13 @@ def process_json_data(input_path: str, output_path: str) -> None:
         sys.exit(1)
 
     results: List[Dict[str, Any]] = []
-    keyword_filtered_count = 0
-    english_filtered_count = 0
+    keyword_filtered_items: List[str] = []
+    english_filtered_items: List[str] = []
 
     for item in data:
         title = item.get("title", "")
         if FILTER_KEYWORD in title:
-            keyword_filtered_count += 1
+            keyword_filtered_items.append(title)
             continue  # スキップ
 
         sections = item.get("sections", {})
@@ -60,7 +60,7 @@ def process_json_data(input_path: str, output_path: str) -> None:
 
         # 英語の割合が高いデータを除外する
         if is_mostly_english(combined_text, ENGLISH_THRESHOLD):
-            english_filtered_count += 1
+            english_filtered_items.append(title)
             continue
 
         results.append({
@@ -71,9 +71,17 @@ def process_json_data(input_path: str, output_path: str) -> None:
 
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(results, f, ensure_ascii=False, indent=2)
+
     print("処理が完了しました。")
-    print(f" - '{FILTER_KEYWORD}' を含むため除外: {keyword_filtered_count} 件")
-    print(f" - 英語の割合が高いため除外: {english_filtered_count} 件")
+    print("-" * 20)
+    print(f"'{FILTER_KEYWORD}' を含むため除外されたデータ ({len(keyword_filtered_items)} 件):")
+    for t in keyword_filtered_items:
+        print(f"  - {t}")
+    print("-" * 20)
+    print(f"英語の割合が高いため除外されたデータ ({len(english_filtered_items)} 件):")
+    for t in english_filtered_items:
+        print(f"  - {t}")
+    print("-" * 20)
     print(f"-> '{output_path}' に {len(results)} 件のデータを保存しました。")
 
 if __name__ == "__main__":
