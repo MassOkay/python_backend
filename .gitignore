@@ -1,6 +1,24 @@
-# Pythonバイトコードキャッシュ
+# Python
 __pycache__/
 *.py[cod]
+*.egg-info/
+dist/
+build/
 
 # Python virtual environment
 venv/
+.venv/
+env/
+
+# データ類
+data.json
+sections_extracted.json
+
+# APIサーバーが生成するファイル
+doc_embeddings.npy
+faiss_index.bin
+embedding_visualization.png
+
+# OS / Editor
+.DS_Store
+.vscode/
