@@ -5,7 +5,8 @@ from typing import List, Dict, Any
 # --- 設定 ---
 INPUT_FILENAME = "data.json"
 OUTPUT_FILENAME = "sections_extracted.json"
-FILTER_KEYWORD = "研究会"
+FILTER_KEYWORD = ["研究会", "情報基礎"]
+
 ENGLISH_THRESHOLD = 0.4  # 英語の割合がこの値以上の場合に除外
 
 def is_mostly_english(text: str, threshold: float) -> bool:
@@ -47,9 +48,10 @@ def process_json_data(input_path: str, output_path: str) -> None:
 
     for item in data:
         title = item.get("title", "")
-        if FILTER_KEYWORD in title:
+        if any(keyword in title for keyword in FILTER_KEYWORD):
             keyword_filtered_items.append(title)
             continue  # スキップ
+        
 
         sections = item.get("sections", {})
         # Noneの場合は空文字に変換
