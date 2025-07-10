@@ -11,8 +11,6 @@ venv/
 env/
 
 # データ類
-data.json
-sections_extracted.json
 
 # APIサーバーが生成するファイル
 doc_embeddings.npy
