@@ -28,4 +28,4 @@ EXPOSE 8000
 # 7. コンテナ起動時に実行されるコマンド
 # `main:app` は、`/app` ディレクトリにある `main.py` ファイル内の
 # `app` という名前のFastAPIアプリケーションインスタンスを指します。
-CMD ["gunicorn", "--workers", "4", "--bind", "0.0.0.0:8000", "main:app", "-k", "uvicorn.workers.UvicornWorker"]
+CMD ["gunicorn", "--workers", "4", "--bind", "0.0.0.0:8000", "python_backend:app", "-k", "uvicorn.workers.UvicornWorker"]
