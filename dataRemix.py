@@ -3,8 +3,8 @@ import sys
 from typing import List, Dict, Any
 
 # --- 設定 ---
-INPUT_FILENAME = "data.json"
-OUTPUT_FILENAME = "sections_extracted.json"
+INPUT_FILENAME = "data/raw.json"
+OUTPUT_FILENAME = "data/extracted.json"
 FILTER_KEYWORD = ["研究会", "情報基礎"]
 
 ENGLISH_THRESHOLD = 0.4  # 英語の割合がこの値以上の場合に除外
