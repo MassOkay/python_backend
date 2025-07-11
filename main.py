@@ -10,6 +10,7 @@ import os
 from typing import List, Dict, Any
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
+matplotlib.use('Agg')
 from fastapi.responses import FileResponse
 
 app = FastAPI()
