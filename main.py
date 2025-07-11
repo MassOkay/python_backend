@@ -1,5 +1,8 @@
 # api_vector_search.py
 
+import matplotlib
+matplotlib.use('Agg') # この行を追加
+
 from fastapi import FastAPI, Query, HTTPException
 from sentence_transformers import SentenceTransformer
 import faiss
@@ -10,7 +13,6 @@ import os
 from typing import List, Dict, Any
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
-matplotlib.use('Agg')
 from fastapi.responses import FileResponse
 
 app = FastAPI()
