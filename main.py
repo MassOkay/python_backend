@@ -25,6 +25,7 @@ origins = [
     "http://localhost:3000", # 例: React/Vue/Angular アプリが動いているポート
     "https://your-frontend-domain.com", # 本番環境のフロントエンドのドメイン
     "http://192.168.11.2:3000"
+    "https://nextjs-with-supabase-8q06ujxq1-massokays-projects.vercel.app/syllabus/vectorSearch" #　本番環境用
     # 必要に応じて、他のオリジンを追加
 ]
 
