@@ -18,24 +18,24 @@ from fastapi.responses import FileResponse
 
 app = FastAPI()
 
-# CORS 設定
-origins = [
-    "http://localhost",  # ローカル開発用
-    "http://localhost:8000",
-    "http://localhost:3000", # 例: React/Vue/Angular アプリが動いているポート
-    "https://your-frontend-domain.com", # 本番環境のフロントエンドのドメイン
-    "http://192.168.11.2:3000"
-    "https://nextjs-with-supabase-8q06ujxq1-massokays-projects.vercel.app/syllabus/vectorSearch" #　本番環境用
-    # 必要に応じて、他のオリジンを追加
-]
+# # CORS 設定
+# origins = [
+#     "http://localhost",  # ローカル開発用
+#     "http://localhost:8000",
+#     "http://localhost:3000", # 例: React/Vue/Angular アプリが動いているポート
+#     "https://your-frontend-domain.com", # 本番環境のフロントエンドのドメイン
+#     "http://192.168.11.2:3000"
+#     "https://nextjs-with-supabase-8q06ujxq1-massokays-projects.vercel.app/syllabus/vectorSearch" #　本番環境用
+#     # 必要に応じて、他のオリジンを追加
+# ]
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins, # 許可するオリジンのリスト
-    allow_credentials=True, # クッキーを許可するかどうか (True の場合、allow_origins で '*' は使えない)
-    allow_methods=["*"],    # 許可する HTTP メソッド (GET, POST, PUT, DELETE など)
-    allow_headers=["*"],    # 許可する HTTP ヘッダー
-)
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=origins, # 許可するオリジンのリスト
+#     allow_credentials=True, # クッキーを許可するかどうか (True の場合、allow_origins で '*' は使えない)
+#     allow_methods=["*"],    # 許可する HTTP メソッド (GET, POST, PUT, DELETE など)
+#     allow_headers=["*"],    # 許可する HTTP ヘッダー
+# )
 
 # --- 設定値 ---
 MODEL_NAME = 'sonoisa/sentence-bert-base-ja-mean-tokens-v2'  # 正しい日本語特化モデル名に修正
