@@ -65,17 +65,17 @@ def load_documents(path: str) -> List[Dict[str, Any]]:
     except json.JSONDecodeError:
         raise HTTPException(status_code=500, detail=f"Failed to decode JSON from {path}")
 
-def create_chunk_embeddings(chunks: List[Dict[str, Any]], model: SentenceTransformer) -> np.ndarray:
-    """チャンクリストからベクトルを作成する"""
-    texts_to_encode = [chunk["text"] for chunk in chunks]
-    # テキストのリストをバッチ処理で一度にエンコード
-    return model.encode(texts_to_encode, convert_to_tensor=False, show_progress_bar=True)
-
 def split_into_sentences(text: str) -> List[str]:
     """テキストを文に分割する"""
     # 空白や改行で繋がれた文を考慮し、句点や改行で分割後、不要な空白を削除
     sentences = re.split(r'(?<=[。！？.])\s*|\n+', text)
     return [s.strip() for s in sentences if s.strip()]
+
+def create_chunk_embeddings(chunks: List[Dict[str, Any]], model: SentenceTransformer) -> np.ndarray:
+    """チャンクリストからベクトルを作成する"""
+    texts_to_encode = [chunk["text"] for chunk in chunks]
+    # テキストのリストをバッチ処理で一度にエンコード
+    return model.encode(texts_to_encode, convert_to_tensor=False, show_progress_bar=True)
 
 @app.on_event("startup")
 def startup_event():
@@ -142,7 +142,7 @@ def search(q: str = Query(..., description="検索ワード")) -> Dict[str, Any]
     doc_scores = {}
     for chunk_idx, score in zip(chunk_indices[0], scores[0]):
         # スコアが極端に低い場合やインデックスが無効な場合はスキップ
-        if chunk_idx < 0 or score < 0.1: continue
+        if chunk_idx < 0 or score < 0.5: continue
         
         original_doc_id = document_chunks[chunk_idx]["original_doc_id"]
         
