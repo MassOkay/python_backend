@@ -9,6 +9,7 @@ build/
 venv/
 .venv/
 env/
+.env
 
 # データ類
 
